@@ -5,7 +5,7 @@
 ##### NetdevJunosResource object (next class...)
 ##### ---------------------------------------------------------------
 
-IsContainer = File.exist?('/.dockerenv')
+IsContainer = (Facter.value(:virtual) == "docker")
 
 module NetdevJunos
   class Device

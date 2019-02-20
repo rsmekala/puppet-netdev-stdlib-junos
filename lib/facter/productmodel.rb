@@ -10,7 +10,7 @@
 # Caveats:
 #
 
-IsContainer = File.exist?('/.dockerenv')
+IsContainer = (Facter.value(:virtual) == "docker")
 
 Facter.add(:productmodel) do
   setcode do
@@ -22,8 +22,8 @@ Facter.add(:productmodel) do
       require 'net/netconf/jnpr/ioproc'
       @netconf = Netconf::IOProc.new
     end
-    ndev.open
-    inv_info = ndev.rpc.get_chassis_inventory
+    @netconf.open
+    inv_info = @netconf.rpc.get_chassis_inventory
     errs = inv_info.xpath('//output')[0]
 
     if errs && errs.text.include?('This command can only be used on the
@@ -33,7 +33,7 @@ Facter.add(:productmodel) do
     end
 
     chassis = inv_info.xpath('chassis')
-    ndev.close
+    @netconf.close
     # Return chassis description which contains productmodel.
     chassis.xpath('description').text
   end
