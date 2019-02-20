@@ -5,6 +5,8 @@
 ##### NetdevJunosResource object (next class...)
 ##### ---------------------------------------------------------------
 
+IsContainer = File.exist?('/.dockerenv')
+
 module NetdevJunos
   class Device
     attr_accessor :netconf, :ready, :edits_count
@@ -18,8 +20,14 @@ module NetdevJunos
       Puppet::Transaction.on_transaction_done = method(:commit)
 
       NetdevJunos::Log.debug "Opening a local connection: #{fqdn}"
-      @netconf = Netconf::IOProc.new
-      @netconf.instance_variable_set :@trans_timeout, nil
+
+      if IsContainer
+        login = { target: 'localhost', username: ENV['NETCONF_USER'] }
+        @netconf = Netconf::SSH.new(login)
+      else
+        @netconf = Netconf::IOProc.new
+        @netconf.instance_variable_set :@trans_timeout, nil
+      end
 
       # --- assuming caller is doing exception handling around this!
       @netconf.open
@@ -81,18 +89,16 @@ module NetdevJunos
 
         begin
           report_show_compare
-          @netconf.rpc.commit_configuration(log: "Puppet agent catalog:
-          #{@catalog_version}")
+          @netconf.rpc.commit_configuration(log: "Puppet agent catalog: #{@catalog_version}")
         rescue Netconf::RpcError => e
-          NetdevJunos::Log.err "ERROR: Configuration change\n" + e.rsp.to_xml,
-                               tags: %i[config fail]
+          NetdevJunos::Log.err "ERROR: Configuration change\n" + e.rsp.to_xml, tags: %i[config fail]
         else
           NetdevJunos::Log.notice 'OK: COMMIT success!', tags: %i[config success]
         ensure
           @netconf.rpc.unlock_configuration
         end
-        # -- committing changes
-      end
+
+      end # -- committing changes
 
       NetdevJunos::Log.debug 'Closing NETCONF connection'
       begin
@@ -104,13 +110,10 @@ module NetdevJunos
     end
 
     def report_show_compare
-      args = { database: 'candidate', compare: 'rollback', rollback: '0',
-               format: 'text' }
+      args = { database: 'candidate', compare: 'rollback', rollback: '0', format: 'text' }
       compare_rsp = @netconf.rpc.get_configuration(args)
       diff = "\n" + compare_rsp.xpath('//configuration-output').text
       NetdevJunos::Log.notice(diff, tags: %i[config changes])
     end
-    #--class
-  end
-  #-- module
-end
+  end #--class
+end #-- module

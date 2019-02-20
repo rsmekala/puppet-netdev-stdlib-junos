@@ -10,9 +10,11 @@
 # Caveats:
 #
 
+IsContainer = File.exist?('/.dockerenv')
+
 Facter.add(:productmodel) do
   setcode do
-    if IS_CONTAINER
+    if IsContainer
       require 'net/netconf/jnpr'
       login = { target: 'localhost', username: ENV['NETCONF_USER'] }
       @netconf = Netconf::SSH.new(login)
