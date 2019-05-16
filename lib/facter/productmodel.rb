@@ -10,14 +10,18 @@
 # Caveats:
 #
 
-IsContainer = (Facter.value(:virtual) == "docker")
+is_docker = (Facter.value(:container) == "docker")
 
 Facter.add(:productmodel) do
   setcode do
-    if IsContainer
+
+    # In case of docker container, open a NETCONF/SSH session
+    if is_docker
       require 'net/netconf/jnpr'
+      # NETCONF_USER refers to the login username configured for puppet operations
       login = { target: 'localhost', username: ENV['NETCONF_USER'] }
       @netconf = Netconf::SSH.new(login)
+    # Else, open an IOProc session
     else
       require 'net/netconf/jnpr/ioproc'
       @netconf = Netconf::IOProc.new
